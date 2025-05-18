@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## 6.0.0 (2025-05-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **Hatch:** Renamed hatch split property points to controlPoints
+* **Hatch:** Renamed polyline "has bulge flag" from bulge to hasBulge
+
+### Features
+
+* add hatch entity to parser ([#107](https://github.com/skymakerolof/dxf/issues/107)) ([362e23a](https://github.com/skymakerolof/dxf/commit/362e23a2cc9e34ecfd1345d576a2138c375fcecb))
+* add layout & paper space to parser ([#106](https://github.com/skymakerolof/dxf/issues/106)) ([d0a6d19](https://github.com/skymakerolof/dxf/commit/d0a6d19e34645aad208642105d381a76f97c5902))
+* add npm scripts for the examples ([966ed8f](https://github.com/skymakerolof/dxf/commit/966ed8f747f8f2b9cbe2c93d9cf0732ad0c1029f))
+* add support for polyfaceMesh outline rendering ([#138](https://github.com/skymakerolof/dxf/issues/138)) ([38fd3a6](https://github.com/skymakerolof/dxf/commit/38fd3a695644f1b142789d1d3e3828ee8a458d1f))
+* add svg config & fixed some bugs ([a0ced35](https://github.com/skymakerolof/dxf/commit/a0ced352bef697dfd2f9dfa2fe354b13328e5b3a))
+* attrib & attdef parsing ([#109](https://github.com/skymakerolof/dxf/issues/109)) ([7a10e4b](https://github.com/skymakerolof/dxf/commit/7a10e4bd7a752a6adbd72f3a0b0e5e5ec7110f3d))
+* **Hatch:** rename hatch->spline points to controlPoints ([#117](https://github.com/skymakerolof/dxf/issues/117)) ([70e9a5d](https://github.com/skymakerolof/dxf/commit/70e9a5d46906f2f1984366df24adf80fd97c454b))
+* LTYPE table parsing ([#121](https://github.com/skymakerolof/dxf/issues/121)) ([6178746](https://github.com/skymakerolof/dxf/commit/6178746ee887eb1fbacb060cfc952d07d5264173))
+* viewport & vport parsing ([#108](https://github.com/skymakerolof/dxf/issues/108)) ([f26642e](https://github.com/skymakerolof/dxf/commit/f26642e8e338c4e85cbc1ab135e0c7f0f68029f6))
+
+
+### Bug Fixes
+
+* 390 prop should be 370; 290 is a plot prop ([004f4c4](https://github.com/skymakerolof/dxf/commit/004f4c4d036bbeebb45ffd035449c923052acc17))
+* correct the paths to the example files ([5232427](https://github.com/skymakerolof/dxf/commit/5232427ed685a8a276ecc5d54d889b4ad45cbf64))
+* handle color value 256 ([#104](https://github.com/skymakerolof/dxf/issues/104)) ([80e9fa1](https://github.com/skymakerolof/dxf/commit/80e9fa119afaf5b3e5f4dcd73583c4a63b0876a8))
+* hatch with polyline points only returning y coordinate ([#132](https://github.com/skymakerolof/dxf/issues/132)) ([948dbbc](https://github.com/skymakerolof/dxf/commit/948dbbcd5e03ac064020b9c1d0b231dced895e7a)), closes [#130](https://github.com/skymakerolof/dxf/issues/130)
+* **Hatch:** bulge value for each point instead of only writing it in the loop level ([#122](https://github.com/skymakerolof/dxf/issues/122)) ([879808c](https://github.com/skymakerolof/dxf/commit/879808cde1d369b36c731b85ac4596f7ed032efe))
+* **Hatch:** rename bulge to hasBulge ([#118](https://github.com/skymakerolof/dxf/issues/118)) ([3cf60c6](https://github.com/skymakerolof/dxf/commit/3cf60c6a1f5cc1711a315222a87a75fc5677041a))
+* ignoring colorNumber when layer is not found ([#140](https://github.com/skymakerolof/dxf/issues/140)) ([a930aa1](https://github.com/skymakerolof/dxf/commit/a930aa1fed526e2557f343775fefaecff5c1f782)), closes [#139](https://github.com/skymakerolof/dxf/issues/139)
+* spline boundary path data ([#134](https://github.com/skymakerolof/dxf/issues/134)) ([4ea2312](https://github.com/skymakerolof/dxf/commit/4ea2312892ef73eed3690fc772ec0f2f8619beef))
+
 ## [5.2.0](https://github.com/skymakerolof/dxf/compare/v5.1.1...v5.2.0) (2024-11-04)
 
 ### [5.1.1](https://github.com/skymakerolof/dxf/compare/v5.1.0...v5.1.1) (2024-08-30)
