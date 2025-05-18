@@ -44,8 +44,8 @@ export default (parseResult) => {
             const t = {
               x: insert.x + rowVec.x * r + colVec.x * c,
               y: insert.y + rowVec.y * r + colVec.y * c,
-              scaleX: insert.scaleX,
-              scaleY: insert.scaleY,
+              scaleX: 1,
+              scaleY: 1,
               scaleZ: insert.scaleZ,
               extrusionX: insert.extrusionX,
               extrusionY: insert.extrusionY,
@@ -65,33 +65,35 @@ export default (parseResult) => {
               // entity coordinates here it creates an issue with the
               // transformation matrices (which are only applied AFTER
               // block insertion modifications has been applied).
+              // 将 scaleX scaleY 缩放转换为点的坐标，而不是进行实体放大或缩小
               switch (be2.type) {
                 case 'LINE': {
-                  be2.start.x -= block.x
-                  be2.start.y -= block.y
-                  be2.end.x -= block.x
-                  be2.end.y -= block.y
+                  be2.start.x = (be2.start.x - block.x) * (insert.scaleX || 1)
+                  be2.start.y = (be2.start.y - block.y) * (insert.scaleY || 1)
+                  be2.end.x = (be2.end.x - block.x) * (insert.scaleX || 1)
+                  be2.end.y = (be2.end.y - block.y) * (insert.scaleY || 1)
+
                   break
                 }
                 case 'LWPOLYLINE':
                 case 'POLYLINE': {
                   be2.vertices.forEach((v) => {
-                    v.x -= block.x
-                    v.y -= block.y
+                    v.x = (v.x - block.x) * (insert.scaleX || 1)
+                    v.y = (v.y - block.y) * (insert.scaleY || 1)
                   })
                   break
                 }
                 case 'CIRCLE':
                 case 'ELLIPSE':
                 case 'ARC': {
-                  be2.x -= block.x
-                  be2.y -= block.y
+                  be2.x = (be2.x - block.x) * (insert.scaleX || 1)
+                  be2.y = (be2.y - block.y) * (insert.scaleY || 1)
                   break
                 }
                 case 'SPLINE': {
                   be2.controlPoints.forEach((cp) => {
-                    cp.x -= block.x
-                    cp.y -= block.y
+                    cp.x = (cp.x - block.x) * (insert.scaleX || 1)
+                    cp.y = (cp.y - block.y) * (insert.scaleY || 1)
                   })
                   break
                 }

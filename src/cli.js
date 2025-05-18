@@ -4,6 +4,8 @@ import fs from 'fs'
 
 import { denormalise, groupEntitiesByLayer, parseString, toSVG } from './'
 
+import logger from './util/logger'
+
 commander
   .version(require('../package.json').version)
   .description('Converts a dxf file to a svg file.')
@@ -14,9 +16,9 @@ commander
 
     if (options.verbose) {
       const groups = groupEntitiesByLayer(denormalise(parsed))
-      console.log('[layer : number of entities]')
+      logger.info('cli:', '[layer : number of entities]')
       Object.keys(groups).forEach((layer) => {
-        console.log(`${layer} : ${groups[layer].length}`)
+        logger.info(`${layer}:`, `${groups[layer].length}`)
       })
     }
 

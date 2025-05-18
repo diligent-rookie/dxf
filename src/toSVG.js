@@ -1,5 +1,8 @@
+/**
+ * json 转 svg
+ */
 import { Box2 } from 'vecks'
-
+import toNumber from 'lodash/toNumber'
 import entityToPolyline from './entityToPolyline'
 import denormalise from './denormalise'
 import getRGBForEntity from './getRGBForEntity'
@@ -8,6 +11,12 @@ import rotate from './util/rotate'
 import rgbToColorAttribute from './util/rgbToColorAttribute'
 import toPiecewiseBezier, { multiplicity } from './util/toPiecewiseBezier'
 import transformBoundingBoxAndElement from './util/transformBoundingBoxAndElement'
+import { isObject } from './util/tools'
+
+// svg 绘制默认配置
+const defaultConfig = {
+  pxpremm: 1,
+}
 
 const addFlipXIfApplicable = (entity, { bbox, element }) => {
   if (entity.extrusionZ === -1) {
@@ -27,7 +36,8 @@ const addFlipXIfApplicable = (entity, { bbox, element }) => {
 /**
  * Create a <path /> element. Interpolates curved entities.
  */
-const polyline = (entity) => {
+const polyline = (entity, config) => {
+  const { pxpremm } = config || defaultConfig
   const vertices = entityToPolyline(entity)
   const bbox = vertices.reduce(
     (acc, [x, y]) => acc.expandByPoint({ x, y }),
@@ -35,7 +45,7 @@ const polyline = (entity) => {
   )
   const d = vertices.reduce((acc, point, i) => {
     acc += i === 0 ? 'M' : 'L'
-    acc += point[0] + ',' + point[1]
+    acc += point[0] / pxpremm + ',' + point[1] / pxpremm
     return acc
   }, '')
   // Empirically it appears that flipping horzontally does not apply to polyline
@@ -43,13 +53,15 @@ const polyline = (entity) => {
     bbox,
     `<path d="${d}" />`,
     entity.transforms,
+    pxpremm,
   )
 }
 
 /**
  * Create a <circle /> element for the CIRCLE entity.
  */
-const circle = (entity) => {
+const circle = (entity, config) => {
+  const { pxpremm } = config || defaultConfig
   const bbox0 = new Box2()
     .expandByPoint({
       x: entity.x + entity.r,
@@ -59,12 +71,23 @@ const circle = (entity) => {
       x: entity.x - entity.r,
       y: entity.y - entity.r,
     })
-  const element0 = `<circle cx="${entity.x}" cy="${entity.y}" r="${entity.r}" />`
+  const converted = {
+    //  String 类型 防止精度丢失
+    cx: `${entity.x / pxpremm}`,
+    cy: `${entity.y / pxpremm}`,
+    r: `${entity.r / pxpremm}`,
+  }
+  const element0 = `<circle cx="${converted.cx}" cy="${converted.cy}" r="${converted.r}" />`
   const { bbox, element } = addFlipXIfApplicable(entity, {
     bbox: bbox0,
     element: element0,
   })
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms)
+  return transformBoundingBoxAndElement(
+    bbox,
+    element,
+    entity.transforms,
+    pxpremm,
+  )
 }
 
 /**
@@ -80,7 +103,9 @@ const ellipseOrArc = (
   startAngle,
   endAngle,
   flipX,
+  config,
 ) => {
+  const { pxpremm } = config || defaultConfig
   const rx = Math.sqrt(majorX * majorX + majorY * majorY)
   const ry = axisRatio * rx
   const rotationAngle = -Math.atan2(-majorY, majorX)
@@ -102,10 +127,16 @@ const ellipseOrArc = (
   ) {
     // Use a native <ellipse> when start and end angles are the same, and
     // arc paths with same start and end points don't render (at least on Safari)
-    const element = `<g transform="rotate(${
-      (rotationAngle / Math.PI) * 180
-    } ${cx}, ${cy})">
-      <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" />
+    const converted = {
+      //  String 类型 防止精度丢失
+      cx: `${cx / pxpremm}`,
+      cy: `${cy / pxpremm}`,
+      rx: `${rx / pxpremm}`,
+      ry: `${ry / pxpremm}`,
+    }
+    const element = `<g transform="rotate(${(rotationAngle / Math.PI) * 180
+      } ${cx}, ${cy})">
+      <ellipse cx="${converted.cx}" cy="${converted.cy}" rx="${converted.rx}" ry="${converted.ry}" />
     </g>`
     return { bbox, element }
   } else {
@@ -134,9 +165,20 @@ const ellipseOrArc = (
     const adjustedEndAngle =
       endAngle < startAngle ? endAngle + Math.PI * 2 : endAngle
     const largeArcFlag = adjustedEndAngle - startAngle < Math.PI ? 0 : 1
-    const d = `M ${startPoint.x} ${startPoint.y} A ${rx} ${ry} ${
-      (rotationAngle / Math.PI) * 180
-    } ${largeArcFlag} 1 ${endPoint.x} ${endPoint.y}`
+    const converted = {
+      //  String 类型 防止精度丢失
+      start: {
+        x: `${startPoint.x / pxpremm}`,
+        y: `${startPoint.y / pxpremm}`,
+      },
+      end: {
+        x: `${endPoint.x / pxpremm}`,
+        y: `${endPoint.y / pxpremm}`,
+      },
+      rx: `${rx / pxpremm}`,
+      ry: `${ry / pxpremm}`,
+    }
+    const d = `M ${converted.start.x} ${converted.start.y} A ${converted.rx} ${converted.ry} ${(rotationAngle / Math.PI) * 180} ${largeArcFlag} 1 ${converted.end.x} ${converted.end.y}`
     const element = `<path d="${d}" />`
     return { bbox, element }
   }
@@ -153,7 +195,7 @@ const bboxEllipseOrArc = (
   axisRatio,
   startAngle,
   endAngle,
-  flipX,
+  // flipX,
 ) => {
   // The bounding box will be defined by the starting point of the ellipse, and ending point,
   // and any extrema on the ellipse that are between startAngle and endAngle.
@@ -223,7 +265,8 @@ const bboxEllipseOrArc = (
  * An ELLIPSE is defined by the major axis, convert to X and Y radius with
  * a rotation angle
  */
-const ellipse = (entity) => {
+const ellipse = (entity, config) => {
+  const { pxpremm } = config || defaultConfig
   const { bbox: bbox0, element: element0 } = ellipseOrArc(
     entity.x,
     entity.y,
@@ -232,18 +275,25 @@ const ellipse = (entity) => {
     entity.axisRatio,
     entity.startAngle,
     entity.endAngle,
+    config,
   )
   const { bbox, element } = addFlipXIfApplicable(entity, {
     bbox: bbox0,
     element: element0,
   })
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms)
+  return transformBoundingBoxAndElement(
+    bbox,
+    element,
+    entity.transforms,
+    pxpremm,
+  )
 }
 
 /**
  * An ARC is an ellipse with equal radii
  */
-const arc = (entity) => {
+const arc = (entity, config) => {
+  const { pxpremm } = config || defaultConfig
   const { bbox: bbox0, element: element0 } = ellipseOrArc(
     entity.x,
     entity.y,
@@ -253,15 +303,22 @@ const arc = (entity) => {
     entity.startAngle,
     entity.endAngle,
     entity.extrusionZ === -1,
+    config,
   )
   const { bbox, element } = addFlipXIfApplicable(entity, {
     bbox: bbox0,
     element: element0,
   })
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms)
+  return transformBoundingBoxAndElement(
+    bbox,
+    element,
+    entity.transforms,
+    pxpremm,
+  )
 }
 
-export const piecewiseToPaths = (k, knots, controlPoints) => {
+const piecewiseToPaths = (k, knots, controlPoints, config) => {
+  const { pxpremm } = config || defaultConfig
   const paths = []
   let controlPointIndex = 0
   let knotIndex = k
@@ -269,13 +326,23 @@ export const piecewiseToPaths = (k, knots, controlPoints) => {
     const m = multiplicity(knots, knotIndex)
     const cp = controlPoints.slice(controlPointIndex, controlPointIndex + k)
     if (k === 4) {
-      paths.push(
-        `<path d="M ${cp[0].x} ${cp[0].y} C ${cp[1].x} ${cp[1].y} ${cp[2].x} ${cp[2].y} ${cp[3].x} ${cp[3].y}" />`,
+      const d = cp.reduce(
+        (pre, cur, idx) =>
+          idx === 1
+            ? pre + ` C ${cur.x / pxpremm} ${cur.y / pxpremm}`
+            : pre + ` ${cur.x / pxpremm} ${cur.y / pxpremm}`,
+        'M',
       )
+      paths.push(`<path d="${d}" />`)
     } else if (k === 3) {
-      paths.push(
-        `<path d="M ${cp[0].x} ${cp[0].y} Q ${cp[1].x} ${cp[1].y} ${cp[2].x} ${cp[2].y}" />`,
+      const d = cp.reduce(
+        (pre, cur, idx) =>
+          idx === 1
+            ? pre + ` Q ${cur.x / pxpremm} ${cur.y / pxpremm}`
+            : pre + ` ${cur.x / pxpremm} ${cur.y / pxpremm}`,
+        'M',
       )
+      paths.push(`<path d="${d}" />`)
     }
     controlPointIndex += m
     knotIndex += m
@@ -283,46 +350,57 @@ export const piecewiseToPaths = (k, knots, controlPoints) => {
   return paths
 }
 
-const bezier = (entity) => {
+const bezier = (entity, config) => {
+  const { pxpremm } = config || defaultConfig
   let bbox = new Box2()
   entity.controlPoints.forEach((p) => {
     bbox = bbox.expandByPoint(p)
   })
   const k = entity.degree + 1
   const piecewise = toPiecewiseBezier(k, entity.controlPoints, entity.knots)
-  const paths = piecewiseToPaths(k, piecewise.knots, piecewise.controlPoints)
+  const paths = piecewiseToPaths(
+    k,
+    piecewise.knots,
+    piecewise.controlPoints,
+    config,
+  )
   const element = `<g>${paths.join('')}</g>`
-  return transformBoundingBoxAndElement(bbox, element, entity.transforms)
+  return transformBoundingBoxAndElement(
+    bbox,
+    element,
+    entity.transforms,
+    pxpremm,
+  )
 }
 
 /**
  * Switcth the appropriate function on entity type. CIRCLE, ARC and ELLIPSE
  * produce native SVG elements, the rest produce interpolated polylines.
  */
-const entityToBoundsAndElement = (entity) => {
+const entityToBoundsAndElement = (entity, config) => {
   switch (entity.type) {
     case 'CIRCLE':
-      return circle(entity)
+      return circle(entity, config)
     case 'ELLIPSE':
-      return ellipse(entity)
+      return ellipse(entity, config)
     case 'ARC':
-      return arc(entity)
+      return arc(entity, config)
     case 'SPLINE': {
       const hasWeights = entity.weights && entity.weights.some((w) => w !== 1)
       if ((entity.degree === 2 || entity.degree === 3) && !hasWeights) {
         try {
-          return bezier(entity)
+          return bezier(entity, config)
         } catch (err) {
-          return polyline(entity)
+          return polyline(entity, config)
         }
       } else {
-        return polyline(entity)
+        return polyline(entity, config)
       }
     }
     case 'LINE':
     case 'LWPOLYLINE':
     case 'POLYLINE': {
-      return polyline(entity)
+      return polyline(entity, config)
     }
     default:
       logger.warn('entity type not supported in SVG rendering:', entity.type)
@@ -330,12 +408,15 @@ const entityToBoundsAndElement = (entity) => {
   }
 }
 
-export default (parsed) => {
+export default (parsed, config) => {
+  const { lineStyle } = config || defaultConfig
+  const lineWidth = lineStyle?.width || '0.1%'
+
   const entities = denormalise(parsed)
   const { bbox, elements } = entities.reduce(
-    (acc, entity, i) => {
+    (acc, entity) => {
       const rgb = getRGBForEntity(parsed.tables.layers, entity)
-      const boundsAndElement = entityToBoundsAndElement(entity)
+      const boundsAndElement = entityToBoundsAndElement(entity, config)
       // Ignore entities like MTEXT that don't produce SVG elements
       if (boundsAndElement) {
         const { bbox, element } = boundsAndElement
@@ -344,9 +425,8 @@ export default (parsed) => {
           acc.bbox.expandByPoint(bbox.min)
           acc.bbox.expandByPoint(bbox.max)
         }
-        acc.elements.push(
-          `<g stroke="${rgbToColorAttribute(rgb)}">${element}</g>`,
-        )
+        const stroke = lineStyle?.color || rgbToColorAttribute(rgb)
+        acc.elements.push(`<g stroke="${stroke}">${element}</g>`)
       }
       return acc
     },
@@ -356,19 +436,48 @@ export default (parsed) => {
     },
   )
 
-  const viewBox = bbox.valid
-    ? {
-        x: bbox.min.x,
-        y: -bbox.max.y,
-        width: bbox.max.x - bbox.min.x,
-        height: bbox.max.y - bbox.min.y,
+  const getSVGConfig = (curbbox, curconfig) => {
+    const { viewbox } = curconfig || defaultConfig
+    if (isObject(viewbox)) {
+      const isWarning =
+        !viewbox.x || !viewbox.y || !viewbox.width || !viewbox.height
+      if (isWarning) {
+        logger.warn(
+          'valid viewbox values need to be given, including x, y, width, and height:',
+          viewbox,
+        )
       }
-    : {
+      const x = parseInt(toNumber(viewbox.x) - curbbox.min.x)
+      const y = parseInt(toNumber(viewbox.y) + curbbox.max.y)
+      return {
+        viewBox: viewbox,
+        matrix: [1, 0, 0, -1, x, y],
+      }
+    }
+    if (curbbox.valid) {
+      return {
+        viewBox: {
+          x: curbbox.min.x,
+          y: -curbbox.max.y,
+          width: curbbox.max.x - curbbox.min.x,
+          height: curbbox.max.y - curbbox.min.y,
+        },
+        matrix: [1, 0, 0, -1, 0, 0],
+      }
+    }
+    return {
+      viewBox: {
         x: 0,
         y: 0,
         width: 0,
         height: 0,
-      }
+      },
+      matrix: [1, 0, 0, -1, 0, 0],
+    }
+  }
+
+  const { viewBox, matrix } = getSVGConfig(bbox, config) || {}
+
   return `<?xml version="1.0"?>
 <svg
   xmlns="http://www.w3.org/2000/svg"
@@ -377,7 +486,7 @@ export default (parsed) => {
   viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}"
   width="100%" height="100%"
 >
-  <g stroke="#000000" stroke-width="0.1%" fill="none" transform="matrix(1,0,0,-1,0,0)">
+  <g stroke="#000000" stroke-width="${lineWidth}" fill="none" vector-effect="non-scaling-stroke" transform="matrix(${matrix.join(',')})">
     ${elements.join('\n')}
   </g>
 </svg>`

@@ -1,3 +1,6 @@
+/**
+ * 处理坐标变换的函数
+ */
 import { Box2 } from 'vecks'
 
 /**
@@ -5,18 +8,21 @@ import { Box2 } from 'vecks'
  * transforms. The <g> element are created in reverse transform
  * order and the bounding box in the given order.
  */
-export default (bbox, element, transforms) => {
-  let transformedElement = ''
+export default (bbox, element, transforms, pxpremm) => {
   const matrices = transforms.map((transform) => {
-    // Create the transformation matrix
-    const tx = transform.x || 0
-    const ty = transform.y || 0
+    // 计算出 transform matrix 值
+    // 平移由tx和ty决定。
+    // 缩放由sx和sy决定。
+    // 旋转由angle决定，这里将角度从度转换为弧度。
+    // 根据extrusionZ的值，可能会对变换矩阵进行镜像处理。
+    const tx = transform.x
+    const ty = transform.y
     const sx = transform.scaleX || 1
     const sy = transform.scaleY || 1
     const angle = ((transform.rotation || 0) / 180) * Math.PI
     const { cos, sin } = Math
     let a, b, c, d, e, f
-    // In DXF an extrusionZ value of -1 denote a tranform around the Y axis.
+    // 在 dxf 中，extrusionZ值为-1表示绕Y轴的变换。
     if (transform.extrusionZ === -1) {
       a = -sx * cos(angle)
       b = sx * sin(angle)
@@ -51,18 +57,32 @@ export default (bbox, element, transforms) => {
       }))
     })
     transformedBBox = bboxPoints.reduce((acc, point) => {
-      return acc.expandByPoint(point)
+      const p = {
+        x: point.x / pxpremm,
+        y: point.y / pxpremm,
+      }
+      return acc.expandByPoint(p)
     }, new Box2())
   }
 
   matrices.reverse()
+
+  let transformedElement = ''
+
   matrices.forEach(([a, b, c, d, e, f]) => {
-    transformedElement += `<g transform="matrix(${a} ${b} ${c} ${d} ${e} ${f})">`
+    transformedElement += `<g transform="matrix(${a},${b},${c},${d},${e / pxpremm},${f / pxpremm})">`
   })
+
   transformedElement += element
-  matrices.forEach((transform) => {
+
+  matrices.forEach(() => {
     transformedElement += '</g>'
   })
+
+  // TODO: 优化 对于脏数据进行清洗
+  if (transformedBBox.min.x < 0) {
+    transformedBBox.valid = false
+  }
 
   return { bbox: transformedBBox, element: transformedElement }
 }

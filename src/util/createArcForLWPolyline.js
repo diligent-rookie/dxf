@@ -3,7 +3,7 @@ import { V2 } from 'vecks'
 /**
  * Create the arcs point for a LWPOLYLINE. The start and end are excluded
  *
- * See diagram.png in this directory for description of points and angles used.
+ * See assests/diagram.png in this directory for description of points and angles used.
  */
 export default (from, to, bulge, resolution) => {
   // Resolution in degrees

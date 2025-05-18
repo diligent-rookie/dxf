@@ -10,21 +10,22 @@ export default (parsed) => {
   const entities = denormalise(parsed)
   const polylines = entities.map((entity) => {
     const layerTable = parsed.tables.layers[entity.layer]
-    let colorNumber = 0
-    if ('colorNumber' in entity) {
-      colorNumber = entity.colorNumber
-    } else if (layerTable) {
-      colorNumber = layerTable.colorNumber
-    }
-
-    if (colors[colorNumber] === undefined) {
-      logger.warn('Color index', colorNumber, 'invalid, defaulting to black')
-      colorNumber = 0
+    let rgb
+    if (layerTable) {
+      const colorNumber =
+        'colorNumber' in entity ? entity.colorNumber : layerTable.colorNumber
+      rgb = colors[colorNumber]
+      if (rgb === undefined) {
+        logger.warn('Color index', colorNumber, 'invalid, defaulting to black')
+        rgb = [0, 0, 0]
+      }
+    } else {
+      logger.warn('no layer table for layer:' + entity.layer)
+      rgb = [0, 0, 0]
     }
 
     return {
-      rgb: colors[colorNumber],
-      layer: layerTable,
+      rgb,
       vertices: applyTransforms(entityToPolyline(entity), entity.transforms),
     }
   })

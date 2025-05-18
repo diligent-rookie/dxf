@@ -1,3 +1,6 @@
+/**
+ * .dxf 文件转 json
+ */
 import headerHandler from './handlers/header'
 import tablesHandler from './handlers/tables'
 import blocksHandler from './handlers/blocks'
